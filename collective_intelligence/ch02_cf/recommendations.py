@@ -85,12 +85,41 @@ def reco_moive(sample, userid, sim_func=sim_pearson):
         rankings.reverse()
         return rankings
 
+# item:{item:val,item2:val2}
+def transform_items(sample):
+    result = {}
+    for user in sample:
+        for item in sample[user]:
+            result.setdefault(item, {})
+            result[item][user] = sample[user][item]
+    return result
+
+# calculate similar items offline.
+def calc_sim_items(item_sample):
+    result = {}
+    cnt = 0
+    for item in item_sample:
+        cnt += 1
+        if cnt%100 == 0: print 'processed: {0}, total: {1}'.format(cnt, len(item_sample))
+        candidates = reco_user(item_sample, item, 5, sim_pearson)
+        result[item] = candidates
+    return result
+
+#
+def reco_item(itemid):
+    item_sample = transform_items(critics)
+    item_reco_result = calc_sim_items(item_sample)
+    return item_reco_result[itemid]
+
+
+
 def main():
     # test case
-    reco_user(critics, 'Toby')
-    reco_moive(critics,'Toby')
+    print reco_user(critics, 'Toby')
+    print reco_moive(critics,'Toby') # user-based
 
+    print reco_item('Just My Luck')  # item-based
 
-if __main__ == '__main__':
+if __name__ == '__main__':
     main()
 
