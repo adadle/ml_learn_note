@@ -1,4 +1,5 @@
 # coding=utf8
+import pdb
 
 from math import sqrt
 
@@ -59,6 +60,7 @@ def sim_pearson(sample, user1, user2):
 # find reco candidates for user.
 def reco_user(sample, userid, pool_size=3, similarity_func=sim_pearson):
     scores = [(similarity_func(sample, cand, userid),cand) for cand in sample if cand != userid]
+    #pdb.set_trace()
     scores.sort()
     scores.reverse()
     return scores[0:pool_size]
@@ -73,17 +75,17 @@ def reco_moive(sample, userid, sim_func=sim_pearson):
         if sim<=0: continue
         for item in sample[cand]:
             #
-            if item not in sample[userid] or sample[userid][item] == 0:
+            if item not in sample[userid] or sample[userid][item]==0:
                 totals.setdefault(item,0)
                 totals[item] += sim * sample[cand][item]
                 sim_sums.setdefault(item,0)
                 sim_sums[item] += sim
 
-        # 建立归一化
-        rankings = [ ( total/sim_sums[item], item) for item,total in totals.items()]
-        rankings.sort()
-        rankings.reverse()
-        return rankings
+    # 建立归一化
+    rankings = [ ( total/sim_sums[item], item) for item,total in totals.items()]
+    rankings.sort()
+    rankings.reverse()
+    return rankings
 
 # item:{item:val,item2:val2}
 def transform_items(sample):
@@ -95,21 +97,32 @@ def transform_items(sample):
     return result
 
 # calculate similar items offline.
-def calc_sim_items(item_sample):
+def calc_sim_items(item_sample,n=10):
     result = {}
-    cnt = 0
     for item in item_sample:
-        cnt += 1
-        if cnt%100 == 0: print 'processed: {0}, total: {1}'.format(cnt, len(item_sample))
-        candidates = reco_user(item_sample, item, 5, sim_pearson)
+        candidates = reco_user(item_sample, item, pool_size=n, similarity_func=sim_pearson)
         result[item] = candidates
     return result
 
-#
-def reco_item(itemid):
-    item_sample = transform_items(critics)
-    item_reco_result = calc_sim_items(item_sample)
-    return item_reco_result[itemid]
+# reco items for user.
+def get_reco_item_by_user(sample, item_sim_result, userid):
+    user_rating = sample[userid]
+    weights = {}
+    total_sim_sum = {}
+    for (item, rating) in user_rating.items():
+        for (sim,cand) in item_sim_result[item]:
+            if cand in user_rating: continue
+            # weight = sum(rating * sim)
+            weights.setdefault(cand, 0)
+            weights[cand] += sim*rating
+            # sum(sim)
+            total_sim_sum.setdefault(cand, 0)
+            total_sim_sum[cand] += sim
+
+    ranking = [ (score/total_sim_sum[cand],cand) for cand,score in weights.items()]
+    ranking.sort()
+    ranking.reverse()
+    return ranking
 
 
 
@@ -118,7 +131,12 @@ def main():
     print reco_user(critics, 'Toby')
     print reco_moive(critics,'Toby') # user-based
 
-    print reco_item('Just My Luck')  # item-based
+    # item-base cf
+    #
+    item_sample = transform_items(critics)
+    item_sim_result = calc_sim_items(item_sample)
+    print item_sim_result['Just My Luck']
+
 
 if __name__ == '__main__':
     main()
